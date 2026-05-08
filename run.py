@@ -70,8 +70,15 @@ DEFAULT_LOCAL_STATE_PATH = Path(__file__).parent / "data" / "state.json"
 IST = timezone(timedelta(hours=5, minutes=30))
 
 
-def load_universe() -> list[dict]:
-    """Load picked universe and merge in held positions (held wins on dedup)."""
+def load_universe(rejected_symbols: set[str] | None = None) -> list[dict]:
+    """Load picked universe and merge in held positions (held wins on dedup).
+
+    `rejected_symbols` is an optional set of NSE symbols (e.g. {"SOBHA",
+    "DEEPAKNTR"}) to filter out — names the user has marked Status="Rejected"
+    in the Watchlist. Held positions are NEVER rejected, even if listed.
+    """
+    rejected_symbols = rejected_symbols or set()
+
     if not UNIVERSE_PATH.exists():
         print(f"WARN: {UNIVERSE_PATH.name} not found — falling back to held positions only", file=sys.stderr)
         return list(HELD_POSITIONS)
@@ -80,12 +87,37 @@ def load_universe() -> list[dict]:
         data = json.load(f)
 
     held_tickers = {h["ticker"] for h in HELD_POSITIONS}
-    picked = [
-        {**u, "held": False}
-        for u in data["universe"]
-        if u["ticker"] not in held_tickers
-    ]
+    held_symbols = {h["symbol"] for h in HELD_POSITIONS}
+
+    rejected_in_universe = []
+    picked = []
+    for u in data["universe"]:
+        if u["ticker"] in held_tickers:
+            continue  # already in held
+        if u["symbol"] in rejected_symbols and u["symbol"] not in held_symbols:
+            rejected_in_universe.append(u["symbol"])
+            continue
+        picked.append({**u, "held": False})
+
+    if rejected_in_universe:
+        print(f"  excluded {len(rejected_in_universe)} rejected symbols: {', '.join(rejected_in_universe)}")
+
     return list(HELD_POSITIONS) + picked
+
+
+def load_rejected_list(path: Path | None) -> set[str]:
+    """Read newline-delimited symbols from `path`. Returns empty set on missing/empty."""
+    if path is None or not path.exists():
+        return set()
+    try:
+        return {
+            line.strip().upper()
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        }
+    except OSError as e:
+        print(f"WARN: couldn't read rejected list at {path}: {e}", file=sys.stderr)
+        return set()
 
 
 # --- indicators -------------------------------------------------------------
@@ -552,6 +584,14 @@ def _parse_args() -> "argparse.Namespace":
         help="Where to write the new state JSON. When omitted, writes to "
              "data/state.json so local re-runs accumulate history.",
     )
+    p.add_argument(
+        "--rejected-list",
+        type=Path,
+        default=None,
+        help="Path to a newline-delimited file of NSE symbols (e.g. SOBHA, "
+             "DEEPAKNTR) to exclude from the universe. Sourced from the Notion "
+             "Watchlist where Status='Rejected'. Omit for no filtering.",
+    )
     return p.parse_args()
 
 
@@ -598,8 +638,11 @@ def main() -> int:
         )
         print(f"  [bhavcopy-error] {e}", file=sys.stderr)
 
-    # 2. Load universe (held positions + picked names)
-    universe = load_universe()
+    # 2. Load universe (held positions + picked names, minus any rejected by user)
+    rejected_symbols = load_rejected_list(args.rejected_list)
+    if rejected_symbols:
+        print(f"rejected list loaded: {len(rejected_symbols)} symbols")
+    universe = load_universe(rejected_symbols=rejected_symbols)
     print(f"universe size: {len(universe)} ({sum(1 for u in universe if u.get('held'))} held + {sum(1 for u in universe if not u.get('held'))} picked)")
 
     # 3. Per-ticker: yfinance history + splice bhavcopy row if newer
