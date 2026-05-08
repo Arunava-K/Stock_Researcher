@@ -41,6 +41,8 @@ from bhavcopy import fetch_latest_bhavcopy, lookup_eq
 from fundamentals import fetch_many as fetch_fundamentals_many
 from memory import annotate_trajectory, build_new_state
 from announcements import fetch_announcements, categorize, CATEGORY_LABEL
+from trade_plan import classify_status, watch_conditions, compute_trade_plan
+import config
 
 # --- config -----------------------------------------------------------------
 
@@ -256,19 +258,17 @@ def render_brief(rows: list[dict], run_date: str, freshness: str,
     rows_sorted = sorted(rows, key=lambda r: (-r["score"], r["dist_52w_high"]))
     held_present = [r for r in rows_sorted if r["held"]]
 
-    # A row is "flagged" only if it clears BOTH the technical score AND fundamentals gates
-    flagged_non_held = [
-        r for r in rows_sorted
-        if r["score"] >= FLAG_THRESHOLD and r.get("passes_gates", True) and not r["held"]
-    ]
+    # New status-based bucketing (FORMING/READY/TRIGGERED/STALE/WATCHING)
+    triggered = [r for r in rows_sorted if not r["held"] and r.get("setup_status") == "TRIGGERED"]
+    ready = [r for r in rows_sorted if not r["held"] and r.get("setup_status") == "READY"]
+    forming = [r for r in rows_sorted if not r["held"] and r.get("setup_status") == "FORMING"]
+    stale = [r for r in rows_sorted if not r["held"] and r.get("setup_status") == "STALE"]
+    watching = [r for r in rows_sorted if not r["held"] and r.get("setup_status") == "WATCHING"]
+
     # Demoted: scored well technically but failed fundamentals gates
     filtered_out = [
         r for r in rows_sorted
         if r["score"] >= FLAG_THRESHOLD and not r.get("passes_gates", True) and not r["held"]
-    ]
-    watching_non_held = [
-        r for r in rows_sorted
-        if r["score"] < FLAG_THRESHOLD and not r["held"]
     ]
 
     new_entrants = [r for r in rows_sorted if r.get("trajectory_tag") == "NEW" and not r["held"]]
@@ -280,7 +280,7 @@ def render_brief(rows: list[dict], run_date: str, freshness: str,
         "",
         f"**Latest close:** {freshness}",
         "",
-        f"_v0 — universe of {len(rows)} (30 picked + held). 4 technical signals + 2 fundamentals gates (D/E < {MAX_DEBT_TO_EQUITY}, sales growth TTM > {MIN_SALES_GROWTH_TTM_PCT:.0f}%). Flag threshold ≥{FLAG_THRESHOLD}/{MAX_SCORE} AND must-pass fundamentals. Trajectory vs prior trading day. Recent NSE announcements for held + flagged._",
+        f"_v1 Phase 1a — universe of {len(rows)} (30 picked + held). 4 technical signals + fundamentals gates. Setups classified as TRIGGERED / READY / FORMING / STALE. Trade plans with concrete numbers for actionable setups. Risk: {config.MAX_RISK_PER_TRADE_FRAC*100:.0f}% of ₹{config.SWING_CAPITAL_INR:,} per trade, min R:R {config.MIN_RISK_REWARD_RATIO:.0f}×._",
         "",
     ]
 
@@ -306,28 +306,43 @@ def render_brief(rows: list[dict], run_date: str, freshness: str,
         for r in held_present:
             lines.extend(_render_row(r))
 
-    lines.extend([f"## Flagged ({len(flagged_non_held)})", ""])
-    if not flagged_non_held:
-        lines.append(f"_Nothing in the picked universe cleared score ≥{FLAG_THRESHOLD}/{MAX_SCORE} **and** fundamentals gates today. Thin day — see watching for next-strongest setups._")
-        lines.append("")
-    else:
-        for r in flagged_non_held:
+    if triggered:
+        lines.extend([f"## 🚨 Triggered Today ({len(triggered)}) — newly cleared the bar", ""])
+        for r in triggered:
+            lines.extend(_render_row(r))
+
+    if ready:
+        lines.extend([f"## 🎯 Ready ({len(ready)}) — setup confirmed, plan below", ""])
+        for r in ready:
+            lines.extend(_render_row(r))
+
+    if not triggered and not ready:
+        lines.append(f"## 🎯 Ready (0)\n\n_No setups cleared the bar today. Thin day — see Forming for what's close._\n")
+
+    if forming:
+        lines.extend([f"## 🌀 Forming ({len(forming)}) — close to ready, watch conditions", ""])
+        for r in forming:
+            lines.extend(_render_row(r))
+
+    if stale:
+        lines.extend([f"## 🌫️ Stale ({len(stale)}) — was ready, now decaying", ""])
+        for r in stale:
             lines.extend(_render_row(r))
 
     if filtered_out:
-        lines.extend([f"## Filtered out (scored well, failed fundamentals) ({len(filtered_out)})", ""])
+        lines.extend([f"## ❌ Filtered out ({len(filtered_out)}) — scored well, failed fundamentals", ""])
         for r in filtered_out:
             reason = r.get("gate_reason") or "—"
             lines.append(f"- `{r['symbol']}` — score {r['score']}/{MAX_SCORE}, **{reason}**")
         lines.append("")
 
-    lines.extend([f"## Watching ({len(watching_non_held)})", ""])
-    if not watching_non_held:
-        lines.append("_All names triggered enough signals to be flagged._")
+    lines.extend([f"## 👀 Watching ({len(watching)}) — too far to plan, just monitoring", ""])
+    if not watching:
+        lines.append("_Nothing in the watching bucket today._")
         lines.append("")
     else:
         # Compact format — symbol + 4-signal breakdown to avoid a wall of text
-        for r in watching_non_held:
+        for r in watching:
             ck = lambda b: "✓" if b else "·"
             tag = r.get("trajectory_tag")
             traj = f" {_TRAJECTORY_ICON[tag]}" if tag else ""
@@ -409,8 +424,19 @@ def _render_row(r: dict) -> list[str]:
     tag = r.get("trajectory_tag")
     title_prefix = f"{_TRAJECTORY_ICON[tag]} " if tag else ""
 
+    status = r.get("setup_status")
+    status_badge = ""
+    if status == "READY":
+        status_badge = " · 🎯 READY"
+    elif status == "TRIGGERED":
+        status_badge = " · 🚨 TRIGGERED today"
+    elif status == "FORMING":
+        status_badge = " · 🌀 forming"
+    elif status == "STALE":
+        status_badge = " · 🌫️ stale"
+
     out = [
-        f"### {title_prefix}{r['symbol']} — {r['name']}{held_tag}",
+        f"### {title_prefix}{r['symbol']} — {r['name']}{held_tag}{status_badge}",
         f"- *{r['industry']}*",
         f"- **Score:** {r['score']}/{MAX_SCORE} — `{r['ticker']}`",
         f"- **Last close:** ₹{r['last_close']:.2f} ({r['as_of']}, {r['source']})",
@@ -425,12 +451,69 @@ def _render_row(r: dict) -> list[str]:
         out.append(traj_line)
 
     out.extend(_announcement_lines(r))
+    out.extend(_trade_plan_lines(r))
+    out.extend(_watch_conditions_lines(r))
     out.append("")
+    return out
+
+
+def _watch_conditions_lines(r: dict) -> list[str]:
+    conds = r.get("watch_conditions")
+    if not conds:
+        return []
+    out = ["", "**Watch conditions** (need ALL for setup to confirm):"]
+    for c in conds:
+        out.append(f"  - ⏱️ {c}")
+    out.append("  → If these clear in the next 3–5 days, a trade plan lands in tomorrow's brief.")
+    return out
+
+
+def _trade_plan_lines(r: dict) -> list[str]:
+    plan = r.get("trade_plan")
+    if not plan:
+        return []
+
+    pos = plan["position"]
+    binding = pos["binding_constraint"]
+
+    out = [
+        "",
+        "**Trade plan** (math, not advice — your call):",
+        f"  - **Entry zone:** ₹{plan['entry_zone_low']:.2f} – ₹{plan['entry_zone_high']:.2f}  (current: ₹{plan['current_price']:.2f})",
+        f"  - **Stop:** ₹{plan['stop']:.2f}  ({plan['stop_method']})",
+        f"  - **Target 1:** ₹{plan['target_1']:.2f}  →  R:R {plan['rr_to_target_1']:.2f}",
+        f"  - **Target 2:** ₹{plan['target_2']:.2f}  →  R:R {plan['rr_to_target_2']:.2f}",
+        f"  - **Risk per share:** ₹{plan['risk_per_share']:.2f}  (ATR ₹{plan['atr']:.2f}, swing low ₹{plan['swing_low']:.2f})",
+    ]
+
+    if plan.get("rr_warning"):
+        out.append(f"  - ⚠️ {plan['rr_warning']} — math doesn't justify a full position; consider smaller size or skip")
+
+    if binding == "unfeasible":
+        out.append(f"  - ❌ **Position size: 0 shares.** Stock too expensive for ₹{config.PER_SLOT_BUDGET_INR:,.0f} per-slot budget at this stop distance.")
+    else:
+        binding_note = {
+            "risk_budget": f"sized to risk {config.MAX_RISK_PER_TRADE_FRAC*100:.0f}% of capital",
+            "slot_budget": f"capped by ₹{config.PER_SLOT_BUDGET_INR:,.0f} per-slot budget — risk would otherwise be smaller",
+        }.get(binding, "")
+        out.extend([
+            f"  - **Position size:** {pos['shares']} share{'s' if pos['shares']!=1 else ''}  ({binding_note})",
+            f"     - Capital deployed: ₹{pos['capital_deployed_inr']:,.2f}  ({pos['capital_deployed_inr']/config.SWING_CAPITAL_INR*100:.1f}% of swing capital)",
+            f"     - Max loss if stop hits: **₹{pos['max_loss_inr']:,.2f}** ({pos['max_loss_pct_of_capital']:.2f}% of capital)",
+            f"     - Profit at T1: ₹{pos['expected_profit_t1_inr']:,.2f} (+{pos['expected_return_t1_pct_of_capital']:.2f}% of capital)",
+            f"     - Profit at T2: ₹{pos['expected_profit_t2_inr']:,.2f} (+{pos['expected_return_t2_pct_of_capital']:.2f}% of capital)",
+        ])
+        if pos['ideal_shares'] != pos['shares'] and binding == "slot_budget":
+            out.append(f"     - _Note: ideal sizing would be {pos['ideal_shares']} shares (₹{pos['ideal_shares']*plan['current_price']:,.0f}) but per-slot budget caps at {pos['shares']}._")
+
     return out
 
 
 def _announcement_lines(r: dict, top_n: int = 5) -> list[str]:
     anns = r.get("announcements")
+    attempted = r.get("announcements_attempted", False)
+    if not attempted:
+        return []  # didn't try — silent (e.g., plain watching stocks)
     if anns is None:
         return ["- 📰 **Recent announcements:** _fetch failed_"]
     if not anns:
@@ -522,6 +605,9 @@ def main() -> int:
     # 3. Per-ticker: yfinance history + splice bhavcopy row if newer
     rows: list[dict] = []
     failures: list[str] = []
+    # Keep OHLC frames around so the trade-plan generator can compute ATR /
+    # swing levels later without re-fetching.
+    ohlc_by_symbol: dict[str, "pd.DataFrame"] = {}
 
     for i, entry in enumerate(universe, 1):
         ticker = entry["ticker"]
@@ -544,6 +630,7 @@ def main() -> int:
                 warnings.append(f"{entry['symbol']} not found in bhavcopy — using yfinance")
 
         rows.append(score_one(entry, yf_df, source_label))
+        ohlc_by_symbol[entry["symbol"]] = yf_df
         print("ok")
 
     # 4. Fetch Screener.in fundamentals for every row (~30s with politeness sleep)
@@ -580,12 +667,27 @@ def main() -> int:
             r["streak_days"] = 0
             r["trajectory_tag"] = None
 
+    # 5b. Setup-status classification + trade-plan generation. Trade plans only
+    #     get computed for FORMING / READY / TRIGGERED / STALE since these are
+    #     the only statuses where a plan or watch list adds value.
+    for r in rows:
+        status = classify_status(r, FLAG_THRESHOLD)
+        r["setup_status"] = status
+        r["watch_conditions"] = None
+        r["trade_plan"] = None
+
+        if status in ("READY", "TRIGGERED"):
+            df = ohlc_by_symbol.get(r["symbol"])
+            r["trade_plan"] = compute_trade_plan(r, df) if df is not None else None
+        elif status == "FORMING":
+            r["watch_conditions"] = watch_conditions(r)
+
     # 6. Recent corporate announcements — only for "candidates of interest":
-    #    held positions + technically-flagged (regardless of fundamentals).
-    #    Watching list is too noisy to deep-dive.
+    #    anything not in the WATCHING bucket (held + ready + triggered + forming + stale).
+    #    Pure watching list is too noisy to deep-dive.
     of_interest = [
         r for r in rows
-        if r["held"] or r["score"] >= FLAG_THRESHOLD
+        if r["held"] or r.get("setup_status") in ("READY", "TRIGGERED", "FORMING", "STALE")
     ]
     if of_interest:
         print(f"\nfetching announcements for {len(of_interest)} candidate{'s' if len(of_interest)!=1 else ''} of interest ...")
@@ -594,12 +696,15 @@ def main() -> int:
             if anns is None:
                 warnings.append(f"announcements fetch failed for {r['symbol']}")
                 r["announcements"] = None
+                r["announcements_attempted"] = True
                 print(f"  {r['symbol']:<14} ... FAILED")
             else:
                 r["announcements"] = anns
+                r["announcements_attempted"] = True
                 print(f"  {r['symbol']:<14} ... {len(anns)} in last 30d")
     for r in rows:
         r.setdefault("announcements", None)
+        r.setdefault("announcements_attempted", False)
 
     if not rows:
         print("FATAL: no data fetched for any ticker", file=sys.stderr)
@@ -638,6 +743,13 @@ def main() -> int:
     sorted_rows = sorted(rows, key=lambda r: (-r["score"], r["dist_52w_high"]))
     # Flagged = clears BOTH the technical score AND the fundamentals gates.
     # Filtered out = scored well but failed fundamentals (visible separately, not hidden).
+    by_status_non_held = {"READY": 0, "TRIGGERED": 0, "FORMING": 0, "STALE": 0, "WATCHING": 0}
+    for r in sorted_rows:
+        if r["held"]:
+            continue
+        s = r.get("setup_status", "WATCHING")
+        by_status_non_held[s] = by_status_non_held.get(s, 0) + 1
+
     flagged_count = sum(
         1 for r in sorted_rows
         if r["score"] >= FLAG_THRESHOLD and r.get("passes_gates", True) and not r["held"]
@@ -676,6 +788,14 @@ def main() -> int:
             "top_score": top_score,
             "universe_size": len(rows) + len(failures),
             "status": status,
+            "by_setup_status": by_status_non_held,
+        },
+        "risk_config": {
+            "swing_capital_inr": config.SWING_CAPITAL_INR,
+            "max_concurrent_positions": config.MAX_CONCURRENT_POSITIONS,
+            "max_risk_per_trade_frac": config.MAX_RISK_PER_TRADE_FRAC,
+            "min_risk_reward_ratio": config.MIN_RISK_REWARD_RATIO,
+            "per_slot_budget_inr": config.PER_SLOT_BUDGET_INR,
         },
     }
     out_json = OUTPUT_DIR / f"{run_date}.json"
