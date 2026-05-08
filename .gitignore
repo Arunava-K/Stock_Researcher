@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Local-only state — for cloud Routine, state lives in the Notion "Routine State" page.
+# Don't commit local copies; they'll go stale.
+data/
+briefs/
+
+.DS_Store

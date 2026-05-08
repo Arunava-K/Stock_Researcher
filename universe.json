@@ -1,0 +1,267 @@
+{
+  "generated_on": "2026-05-07",
+  "criteria": {
+    "indices": [
+      "NIFTY Midcap 150",
+      "NIFTY Smallcap 250"
+    ],
+    "exclude_it_big10": [
+      "COFORGE",
+      "HCLTECH",
+      "INFY",
+      "LTIM",
+      "LTTS",
+      "MPHASIS",
+      "PERSISTENT",
+      "TCS",
+      "TECHM",
+      "WIPRO"
+    ],
+    "min_turnover_lacs": 200,
+    "target_size": 30,
+    "selection_bias": "bottom 60% by turnover within liquid pool",
+    "random_seed": 42
+  },
+  "universe": [
+    {
+      "ticker": "AIIL.NS",
+      "symbol": "AIIL",
+      "name": "Authum Investment & Infrastructure Ltd.",
+      "industry": "Financial Services",
+      "turnover_lacs_at_pick": 1317.5,
+      "close_at_pick": 490.05
+    },
+    {
+      "ticker": "AJANTPHARM.NS",
+      "symbol": "AJANTPHARM",
+      "name": "Ajanta Pharmaceuticals Ltd.",
+      "industry": "Healthcare",
+      "turnover_lacs_at_pick": 3647.21,
+      "close_at_pick": 3078.4
+    },
+    {
+      "ticker": "APOLLOTYRE.NS",
+      "symbol": "APOLLOTYRE",
+      "name": "Apollo Tyres Ltd.",
+      "industry": "Automobile and Auto Components",
+      "turnover_lacs_at_pick": 7729.92,
+      "close_at_pick": 410.05
+    },
+    {
+      "ticker": "ATUL.NS",
+      "symbol": "ATUL",
+      "name": "Atul Ltd.",
+      "industry": "Chemicals",
+      "turnover_lacs_at_pick": 1516.93,
+      "close_at_pick": 7033.5
+    },
+    {
+      "ticker": "BRIGADE.NS",
+      "symbol": "BRIGADE",
+      "name": "Brigade Enterprises Ltd.",
+      "industry": "Realty",
+      "turnover_lacs_at_pick": 5864.15,
+      "close_at_pick": 773.15
+    },
+    {
+      "ticker": "CRISIL.NS",
+      "symbol": "CRISIL",
+      "name": "CRISIL Ltd.",
+      "industry": "Financial Services",
+      "turnover_lacs_at_pick": 4562.25,
+      "close_at_pick": 4152.0
+    },
+    {
+      "ticker": "DCMSHRIRAM.NS",
+      "symbol": "DCMSHRIRAM",
+      "name": "DCM Shriram Ltd.",
+      "industry": "Diversified",
+      "turnover_lacs_at_pick": 1065.79,
+      "close_at_pick": 1260.5
+    },
+    {
+      "ticker": "DEEPAKNTR.NS",
+      "symbol": "DEEPAKNTR",
+      "name": "Deepak Nitrite Ltd.",
+      "industry": "Chemicals",
+      "turnover_lacs_at_pick": 6850.65,
+      "close_at_pick": 1854.4
+    },
+    {
+      "ticker": "DEVYANI.NS",
+      "symbol": "DEVYANI",
+      "name": "Devyani International Ltd.",
+      "industry": "Consumer Services",
+      "turnover_lacs_at_pick": 2467.77,
+      "close_at_pick": 118.89
+    },
+    {
+      "ticker": "EIDPARRY.NS",
+      "symbol": "EIDPARRY",
+      "name": "E.I.D. Parry (India) Ltd.",
+      "industry": "Fast Moving Consumer Goods",
+      "turnover_lacs_at_pick": 2347.54,
+      "close_at_pick": 847.35
+    },
+    {
+      "ticker": "EMCURE.NS",
+      "symbol": "EMCURE",
+      "name": "Emcure Pharmaceuticals Ltd.",
+      "industry": "Healthcare",
+      "turnover_lacs_at_pick": 4606.7,
+      "close_at_pick": 1664.8
+    },
+    {
+      "ticker": "FLUOROCHEM.NS",
+      "symbol": "FLUOROCHEM",
+      "name": "Gujarat Fluorochemicals Ltd.",
+      "industry": "Chemicals",
+      "turnover_lacs_at_pick": 4004.03,
+      "close_at_pick": 3798.4
+    },
+    {
+      "ticker": "FORTIS.NS",
+      "symbol": "FORTIS",
+      "name": "Fortis Healthcare Ltd.",
+      "industry": "Healthcare",
+      "turnover_lacs_at_pick": 6561.33,
+      "close_at_pick": 947.7
+    },
+    {
+      "ticker": "GALLANTT.NS",
+      "symbol": "GALLANTT",
+      "name": "Gallantt Ispat Ltd.",
+      "industry": "Capital Goods",
+      "turnover_lacs_at_pick": 7911.39,
+      "close_at_pick": 866.5
+    },
+    {
+      "ticker": "HDBFS.NS",
+      "symbol": "HDBFS",
+      "name": "HDB Financial Services Ltd.",
+      "industry": "Financial Services",
+      "turnover_lacs_at_pick": 4791.58,
+      "close_at_pick": 700.55
+    },
+    {
+      "ticker": "HOMEFIRST.NS",
+      "symbol": "HOMEFIRST",
+      "name": "Home First Finance Company India Ltd.",
+      "industry": "Financial Services",
+      "turnover_lacs_at_pick": 9650.78,
+      "close_at_pick": 1217.5
+    },
+    {
+      "ticker": "IREDA.NS",
+      "symbol": "IREDA",
+      "name": "Indian Renewable Energy Development Agency Ltd.",
+      "industry": "Financial Services",
+      "turnover_lacs_at_pick": 8216.69,
+      "close_at_pick": 135.56
+    },
+    {
+      "ticker": "ITI.NS",
+      "symbol": "ITI",
+      "name": "ITI Ltd.",
+      "industry": "Telecommunication",
+      "turnover_lacs_at_pick": 2472.57,
+      "close_at_pick": 303.65
+    },
+    {
+      "ticker": "MRPL.NS",
+      "symbol": "MRPL",
+      "name": "Mangalore Refinery & Petrochemicals Ltd.",
+      "industry": "Oil Gas & Consumable Fuels",
+      "turnover_lacs_at_pick": 9879.44,
+      "close_at_pick": 155.35
+    },
+    {
+      "ticker": "MSUMI.NS",
+      "symbol": "MSUMI",
+      "name": "Motherson Sumi Wiring India Ltd.",
+      "industry": "Automobile and Auto Components",
+      "turnover_lacs_at_pick": 5912.52,
+      "close_at_pick": 42.83
+    },
+    {
+      "ticker": "PCBL.NS",
+      "symbol": "PCBL",
+      "name": "PCBL Chemical Ltd.",
+      "industry": "Chemicals",
+      "turnover_lacs_at_pick": 2498.92,
+      "close_at_pick": 304.45
+    },
+    {
+      "ticker": "RAMCOCEM.NS",
+      "symbol": "RAMCOCEM",
+      "name": "The Ramco Cements Ltd.",
+      "industry": "Construction Materials",
+      "turnover_lacs_at_pick": 5834.07,
+      "close_at_pick": 959.95
+    },
+    {
+      "ticker": "RITES.NS",
+      "symbol": "RITES",
+      "name": "RITES Ltd.",
+      "industry": "Construction",
+      "turnover_lacs_at_pick": 2288.57,
+      "close_at_pick": 228.82
+    },
+    {
+      "ticker": "SOBHA.NS",
+      "symbol": "SOBHA",
+      "name": "Sobha Ltd.",
+      "industry": "Realty",
+      "turnover_lacs_at_pick": 3973.26,
+      "close_at_pick": 1451.0
+    },
+    {
+      "ticker": "SONATSOFTW.NS",
+      "symbol": "SONATSOFTW",
+      "name": "Sonata Software Ltd.",
+      "industry": "Information Technology",
+      "turnover_lacs_at_pick": 1947.14,
+      "close_at_pick": 270.75
+    },
+    {
+      "ticker": "SWANCORP.NS",
+      "symbol": "SWANCORP",
+      "name": "Swan Corp Ltd.",
+      "industry": "Chemicals",
+      "turnover_lacs_at_pick": 7181.15,
+      "close_at_pick": 355.4
+    },
+    {
+      "ticker": "TITAGARH.NS",
+      "symbol": "TITAGARH",
+      "name": "Titagarh Rail Systems Ltd.",
+      "industry": "Capital Goods",
+      "turnover_lacs_at_pick": 9378.87,
+      "close_at_pick": 844.3
+    },
+    {
+      "ticker": "TRAVELFOOD.NS",
+      "symbol": "TRAVELFOOD",
+      "name": "Travel Food Services Ltd.",
+      "industry": "Consumer Services",
+      "turnover_lacs_at_pick": 285.92,
+      "close_at_pick": 1250.2
+    },
+    {
+      "ticker": "UNOMINDA.NS",
+      "symbol": "UNOMINDA",
+      "name": "UNO Minda Ltd.",
+      "industry": "Automobile and Auto Components",
+      "turnover_lacs_at_pick": 10023.78,
+      "close_at_pick": 1145.7
+    },
+    {
+      "ticker": "ZENSARTECH.NS",
+      "symbol": "ZENSARTECH",
+      "name": "Zensar Technolgies Ltd.",
+      "industry": "Information Technology",
+      "turnover_lacs_at_pick": 2602.78,
+      "close_at_pick": 520.4
+    }
+  ]
+}

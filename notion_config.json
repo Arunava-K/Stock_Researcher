@@ -1,0 +1,17 @@
+{
+  "_comment": "Notion entity IDs for the Stock Research Routine. Read by run.py (sidecar) and used by the Routine prompt to publish.",
+  "root_page_id": "3590b4d0-e9b0-80be-9e9e-d4f8a5ad8871",
+  "root_page_url": "https://www.notion.so/3590b4d0e9b080be9e9ed4f8a5ad8871",
+  "daily_briefs_database_url": "https://www.notion.so/9a003ef746f64f3a90c380a2ab920ad6",
+  "daily_briefs_data_source_id": "5f1ddcef-674b-45fa-b785-51e5bf90a85a",
+  "watchlist_database_url": "https://www.notion.so/a149e0e3a66c4c9fa99c0f3194e9cd09",
+  "watchlist_data_source_id": "f1195ff1-9d1a-4639-9c80-c6b2ad8cf741",
+  "routine_state_page_id": "3590b4d0-e9b0-8150-b11c-d057f5690e1d",
+  "routine_state_page_url": "https://www.notion.so/3590b4d0e9b08150b11cd057f5690e1d",
+  "_deprecated": {
+    "old_daily_briefs_page_id": "3590b4d0-e9b0-81da-8536-f76d761a4623",
+    "old_daily_briefs_page_url": "https://www.notion.so/3590b4d0e9b081da8536f76d761a4623",
+    "old_first_brief_page_url": "https://www.notion.so/3590b4d0e9b0815e8499deebacf3f346",
+    "note": "Replaced by Daily Briefs database. Delete these in Notion UI manually."
+  }
+}
