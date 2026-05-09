@@ -33,13 +33,17 @@ LOG="logs/$(date -u +%Y-%m-%dT%H%M%SZ).log"
     echo "Routine prompt: $(wc -l < routine_prompt.md) lines"
     echo
 
-    # Hand routine_prompt.md to Claude Code.
+    # Hand the skill body to Claude Code.
+    #
+    # The skill at .claude/skills/stock-brief.md is the canonical workflow,
+    # invokable interactively as `/stock-brief` from inside the repo. Cron uses
+    # the same content via stdin.
     #
     # NOTE on the CLI flag: `--print` reads stdin and prints the final response
     # non-interactively. Verify on your homeserver with:
-    #     claude --print < routine_prompt.md
+    #     claude --print < .claude/skills/stock-brief.md
     # If your `claude` build uses a different flag, adjust here.
-    claude --print < routine_prompt.md
+    claude --print < .claude/skills/stock-brief.md
 
     echo
     echo "=== Stock Research routine: finished $(date -Iseconds) ==="
