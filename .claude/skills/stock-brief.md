@@ -21,7 +21,7 @@ You are running Arunava's daily stock research workflow. He's an Indian retail s
 **User context:**
 - Capital: ₹10,000 swing-trade pool, max 2 concurrent positions
 - Risk: 2% of capital per trade (₹200), min R:R 2:1
-- Held: HFCL @ ₹146.07, SUZLON @ ₹56.40
+- Held direct equity (screened): J&KBANK @ ₹137.00 × 22 = ₹3,014, SUZLON @ ₹56.14 × 50 = ₹2,807. Also holds GROWWPOWER (Nifty Power ETF, ₹525) — not screened. Portfolio also has GOLDBEES ₹19,833 + TATSILV ₹6,589 as ballast. See [[project-portfolio-structure]].
 - Avoids: big-10 mainstream Indian IT services (TCS/INFY/etc) — AI thesis
 - He's articulated discipline against FOMO chasing — frame already-moved stocks as "watch for pullback", never "buy now"
 
@@ -194,7 +194,7 @@ For READY/TRIGGERED — show the trade plan from the JSON sidecar:
 For Ready: more direct. Setup confirmed; what would invalidate the trade?]
 
 #### Held position note [ONLY for held stocks]
-[1–2 sentences. Reference his entry price (HFCL ₹146.07, SUZLON ₹56.40). Show current P&L %. Mention if state worth holding or deteriorating.]
+[1–2 sentences. Reference his entry price (J&KBANK ₹137.00 × 22 = ₹3,014; SUZLON ₹56.14 × 50 = ₹2,807). Show current P&L %. Mention if state worth holding or deteriorating. Compare equity loss to gold-hedge buffer where relevant — see [[project-portfolio-structure]].]
 ```
 
 ### Step 8 — Publish the Daily Brief row
@@ -252,7 +252,7 @@ Create via `notion-create-pages` with parent data_source_id `f1195ff1-9d1a-4639-
 }
 ```
 
-For Held stocks, also set Notes on creation only: brief mention of entry price (HFCL ₹146.07, SUZLON ₹56.40). On update, never touch Notes.
+For Held stocks, also set Notes on creation only: brief mention of entry price (J&KBANK ₹137.00 × 22, SUZLON ₹56.14 × 50). On update, never touch Notes.
 
 ### Step 10 — Update Routine State page
 

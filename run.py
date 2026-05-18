@@ -49,8 +49,8 @@ import config
 # Held positions — always scanned, even if not in the picked universe.
 # Update this when the user opens or closes a position.
 HELD_POSITIONS = [
-    {"ticker": "HFCL.NS",   "symbol": "HFCL",   "name": "HFCL Ltd — telecom equipment", "industry": "Telecommunication", "held": True},
-    {"ticker": "SUZLON.NS", "symbol": "SUZLON", "name": "Suzlon Energy — renewables",   "industry": "Power",             "held": True},
+    {"ticker": "J&KBANK.NS", "symbol": "J&KBANK", "name": "Jammu & Kashmir Bank — PSU bank", "industry": "Banks", "held": True},
+    {"ticker": "SUZLON.NS",  "symbol": "SUZLON",  "name": "Suzlon Energy — renewables",      "industry": "Power", "held": True},
 ]
 
 NEAR_HIGH_THRESHOLD = 0.10   # within 10% of 52w high
@@ -103,6 +103,35 @@ def load_universe(rejected_symbols: set[str] | None = None) -> list[dict]:
         print(f"  excluded {len(rejected_in_universe)} rejected symbols: {', '.join(rejected_in_universe)}")
 
     return list(HELD_POSITIONS) + picked
+
+
+def build_single_entry(symbol: str) -> dict:
+    """Resolve a single user-supplied ticker into a universe-style entry.
+
+    Used by --ticker mode (ad-hoc deep-dive). Tries yfinance Ticker.info for
+    company name + industry; falls back to bare symbol if the lookup fails or
+    returns nothing useful. The returned dict is shaped like a universe.json
+    row so the rest of the pipeline treats it uniformly.
+    """
+    symbol = symbol.upper().strip()
+    if symbol.endswith(".NS"):
+        symbol = symbol[:-3]
+    ticker = f"{symbol}.NS"
+
+    name = symbol
+    industry = ""
+    try:
+        info = yf.Ticker(ticker).get_info()
+        long_name = info.get("longName") or info.get("shortName")
+        if long_name:
+            name = long_name
+        ind = info.get("industry") or info.get("sector") or ""
+        if ind:
+            industry = ind
+    except Exception as e:
+        print(f"  [yf-info-warn] {ticker}: {e}", file=sys.stderr)
+
+    return {"ticker": ticker, "symbol": symbol, "name": name, "industry": industry, "held": False}
 
 
 def load_rejected_list(path: Path | None) -> set[str]:
@@ -592,6 +621,15 @@ def _parse_args() -> "argparse.Namespace":
              "DEEPAKNTR) to exclude from the universe. Sourced from the Notion "
              "Watchlist where Status='Rejected'. Omit for no filtering.",
     )
+    p.add_argument(
+        "--ticker",
+        type=str,
+        default=None,
+        help="Run analysis on a single NSE symbol (e.g. TATAMOTORS or "
+             "TATAMOTORS.NS). Skips the universe scan and the trajectory state "
+             "machinery; writes briefs/deep-dive-SYMBOL-DATE.{md,json}. Used by "
+             "the /stock-deep-dive skill for ad-hoc lookups.",
+    )
     return p.parse_args()
 
 
@@ -622,7 +660,9 @@ def main() -> int:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     warnings: list[str] = []
 
-    prior_state = _load_state(args.prior_state)
+    single_ticker_mode = args.ticker is not None
+    # Ad-hoc deep-dive runs are stateless — no trajectory, no state writeback.
+    prior_state = None if single_ticker_mode else _load_state(args.prior_state)
 
     # 1. Fetch bhavcopy (authoritative latest close)
     bhav_df = None
@@ -638,12 +678,18 @@ def main() -> int:
         )
         print(f"  [bhavcopy-error] {e}", file=sys.stderr)
 
-    # 2. Load universe (held positions + picked names, minus any rejected by user)
-    rejected_symbols = load_rejected_list(args.rejected_list)
-    if rejected_symbols:
-        print(f"rejected list loaded: {len(rejected_symbols)} symbols")
-    universe = load_universe(rejected_symbols=rejected_symbols)
-    print(f"universe size: {len(universe)} ({sum(1 for u in universe if u.get('held'))} held + {sum(1 for u in universe if not u.get('held'))} picked)")
+    # 2. Build the universe to scan. Single-ticker mode skips the picked
+    #    universe + held merge entirely; full daily scan loads both.
+    if single_ticker_mode:
+        print(f"single-ticker mode: {args.ticker}")
+        universe = [build_single_entry(args.ticker)]
+        print(f"  resolved to {universe[0]['ticker']} — {universe[0]['name']} ({universe[0]['industry'] or 'industry unknown'})")
+    else:
+        rejected_symbols = load_rejected_list(args.rejected_list)
+        if rejected_symbols:
+            print(f"rejected list loaded: {len(rejected_symbols)} symbols")
+        universe = load_universe(rejected_symbols=rejected_symbols)
+        print(f"universe size: {len(universe)} ({sum(1 for u in universe if u.get('held'))} held + {sum(1 for u in universe if not u.get('held'))} picked)")
 
     # 3. Per-ticker: yfinance history + splice bhavcopy row if newer
     rows: list[dict] = []
@@ -728,10 +774,15 @@ def main() -> int:
     # 6. Recent corporate announcements — only for "candidates of interest":
     #    anything not in the WATCHING bucket (held + ready + triggered + forming + stale).
     #    Pure watching list is too noisy to deep-dive.
-    of_interest = [
-        r for r in rows
-        if r["held"] or r.get("setup_status") in ("READY", "TRIGGERED", "FORMING", "STALE")
-    ]
+    #    In single-ticker mode the user explicitly picked this stock, so we
+    #    always fetch announcements regardless of setup status.
+    if single_ticker_mode:
+        of_interest = list(rows)
+    else:
+        of_interest = [
+            r for r in rows
+            if r["held"] or r.get("setup_status") in ("READY", "TRIGGERED", "FORMING", "STALE")
+        ]
     if of_interest:
         print(f"\nfetching announcements for {len(of_interest)} candidate{'s' if len(of_interest)!=1 else ''} of interest ...")
         for r in of_interest:
@@ -771,13 +822,18 @@ def main() -> int:
     if failures:
         brief_md += f"\n\n> **Data fetch failed for:** {', '.join(failures)}\n"
 
-    out_md = OUTPUT_DIR / f"{run_date}.md"
+    if single_ticker_mode:
+        out_stem = f"deep-dive-{rows[0]['symbol']}-{run_date}"
+    else:
+        out_stem = run_date
+    out_md = OUTPUT_DIR / f"{out_stem}.md"
     out_md.write_text(brief_md, encoding="utf-8")
     print(f"\nwrote {out_md}")
 
     # Build the new state and write it out for the Routine to upload to Notion
-    # (or for the next local run to consume).
-    if bhav_date is not None and rows:
+    # (or for the next local run to consume). Skipped in single-ticker mode —
+    # ad-hoc deep-dives don't accumulate trajectory.
+    if not single_ticker_mode and bhav_date is not None and rows:
         new_state = build_new_state(rows, bhav_date.isoformat(), prior_state)
         state_path = _write_state(args.state_out, new_state)
         print(f"wrote new state ({len(new_state['history'])} day(s) of history) → {state_path}")
@@ -841,7 +897,7 @@ def main() -> int:
             "per_slot_budget_inr": config.PER_SLOT_BUDGET_INR,
         },
     }
-    out_json = OUTPUT_DIR / f"{run_date}.json"
+    out_json = OUTPUT_DIR / f"{out_stem}.json"
     out_json.write_text(json.dumps(sidecar, indent=2), encoding="utf-8")
     print(f"wrote {out_json}")
     return 0
